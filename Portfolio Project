@@ -1,0 +1,67 @@
+-- check first 10 rows in covid death with following columns
+select location, date, total_cases, new_cases, total_deaths, population
+from covid_death
+order by 1,2
+limit 10;
+
+-- check total case vs total death( death rate)
+select location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as death_percentage
+from covid_death
+order by 1,2;
+
+-- check total case vs population ( case/population)
+select location, date, total_cases, total_deaths, (total_cases/population)*100 as covid_percentage
+from covid_death
+order by 1,2;
+
+-- check total case vs population ( death rate in china)
+select location, date, total_cases, total_deaths, population, (total_cases/population)*100 as covid_percentage
+from covid_death
+where location like '%China%'
+order by 1,2;
+
+-- check all countries with highest infection rate compared to population
+select location, total_cases, total_deaths, population, Max((total_cases/population))*100 as infected_percentage
+from covid_death
+where continent is not null
+group by  location, population
+order by infected_percentage desc
+;
+
+-- check different continent infected_percentage
+select continent, total_cases, total_deaths, population, Max((total_cases/population))*100 as infected_percentage
+from covid_death
+where continent is not null
+group by continent
+order by infected_percentage desc
+;
+
+-- join two tables looking at total population vs vaccinations
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, sum(Cast(vac.new_vaccinations as int))
+over (Partition by dea.location order by  dea.location, dea.date) as Rollingpeople_vaccinated
+from covid_death  dea
+join covid_vaccinations vac
+on dea.location = vac.location
+and dea.date = vac.date
+where dea.continent is not null
+order by 2,3 ;
+
+-- temp table
+Drop table if exists PercentPopulationVaccinated;
+Create Table PercentPopulationVaccinated (
+Continent nvarchar(255),
+Location nvarchar(255),
+Date datetime,
+Population real,
+New_vaccinations numeric,
+Rollingpeople_vaccinated real);
+
+Insert into PercentPopulationVaccinated
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, sum(Cast(vac.new_vaccinations as int))
+over (Partition by dea.location order by  dea.location, dea.date) as Rollingpeople_vaccinated
+from covid_death  dea
+join covid_vaccinations vac
+    on dea.location = vac.location and dea.date = vac.date
+where dea.continent is not null;
+select * , (Rollingpeople_vaccinated/ Population)*100
+from PercentPopulationVaccinated;
